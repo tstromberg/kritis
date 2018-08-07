@@ -33,11 +33,11 @@ func ExitIfErr(cmd *cobra.Command, err error) {
 }
 
 func CreateAttestationSignature(image string, pgpSigningKey *secrets.PGPSigningSecret) (string, error) {
-	hostSig, err := container.NewAtomicContainerSig(image, map[string]string{})
+	hostSig, err := container.NewAtomicSig(image, map[string]string{})
 	if err != nil {
 		return "", err
 	}
-	hostStr, err := hostSig.Json()
+	hostStr, err := hostSig.JSON()
 	if err != nil {
 		return "", err
 	}

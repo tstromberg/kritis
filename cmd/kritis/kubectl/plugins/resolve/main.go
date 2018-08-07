@@ -21,6 +21,9 @@ import (
 	"os"
 
 	"github.com/grafeas/kritis/cmd/kritis/kubectl/plugins/resolve/cmd"
+
+	// Initialize all known client auth plugins
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 func main() {

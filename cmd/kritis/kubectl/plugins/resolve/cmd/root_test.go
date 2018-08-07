@@ -18,12 +18,13 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"github.com/grafeas/kritis/pkg/kritis/testutil"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/grafeas/kritis/pkg/kritis/testutil"
 )
 
 var testYaml = `apiVersion: v1
@@ -62,10 +63,10 @@ func Test_RootCmd(t *testing.T) {
 }
 
 func Test_resolveFilepaths(t *testing.T) {
-	originalKPLFF := os.Getenv(KUBECTL_PLUGINS_LOCAL_FLAG_FILENAME)
-	originalPWD := os.Getenv(PWD)
-	defer os.Setenv(KUBECTL_PLUGINS_LOCAL_FLAG_FILENAME, originalKPLFF)
-	defer os.Setenv(PWD, originalPWD)
+	originalKPLFF := os.Getenv("KUBECTL_PLUGINS_LOCAL_FLAG_FILENAME")
+	originalPWD, _ := os.Getwd()
+	defer os.Setenv("KUBECTL_PLUGINS_LOCAL_FLAG_FILENAME", originalKPLFF)
+	defer os.Chdir(originalPWD)
 
 	file, err := ioutil.TempFile("", "")
 	if err != nil {
@@ -75,10 +76,11 @@ func Test_resolveFilepaths(t *testing.T) {
 
 	base := filepath.Base(file.Name())
 	dir := filepath.Dir(file.Name())
-	if err := os.Setenv(KUBECTL_PLUGINS_LOCAL_FLAG_FILENAME, base); err != nil {
+	if err := os.Setenv("KUBECTL_PLUGINS_LOCAL_FLAG_FILENAME", base); err != nil {
 		t.Error(err)
 	}
-	if err := os.Setenv(PWD, dir); err != nil {
+
+	if err := os.Chdir(dir); err != nil {
 		t.Error(err)
 	}
 

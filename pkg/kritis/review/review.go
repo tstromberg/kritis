@@ -29,12 +29,12 @@ import (
 )
 
 type Reviewer struct {
-	client   metadata.MetadataFetcher
+	client   metadata.Fetcher
 	vs       violation.Strategy
 	validate securitypolicy.ValidateFunc
 }
 
-func New(client metadata.MetadataFetcher, vs violation.Strategy, validate securitypolicy.ValidateFunc) Reviewer {
+func New(client metadata.Fetcher, vs violation.Strategy, validate securitypolicy.ValidateFunc) Reviewer {
 	return Reviewer{
 		client:   client,
 		vs:       vs,
@@ -61,7 +61,7 @@ func (r Reviewer) Review(images []string, isps []v1beta1.ImageSecurityPolicy, po
 				errMsg := fmt.Sprintf("found violations in %s", image)
 				// Check if one of the violations is that the image is not fully qualified
 				for _, v := range violations {
-					if v.Violation == securitypolicy.UnqualifiedImageViolation {
+					if v.Type == securitypolicy.UnqualifiedImageViolation {
 						errMsg = fmt.Sprintf("%s is not a fully qualified image", image)
 					}
 				}

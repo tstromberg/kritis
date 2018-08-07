@@ -62,7 +62,7 @@ func VerifyMessageAttestation(pubKeyEnc string, attestationHash string, message 
 	if err != nil {
 		return err
 	}
-	buf := bytes.NewBuffer([]byte(attestation))
+	buf := bytes.NewBuffer(attestation)
 	armorBlock, err := armor.Decode(buf)
 	if err != nil {
 		return errors.Wrap(err, "could not decode armor signature")
@@ -139,7 +139,7 @@ func createEntityFromKeys(pubKey *packet.PublicKey, privKey *packet.PrivateKey) 
 		PrivateKey: privKey,
 		Identities: make(map[string]*openpgp.Identity),
 	}
-	isPrimaryId := true
+	isPrimaryID := true
 	e.Identities[uid.Id] = &openpgp.Identity{
 		Name:   uid.Id,
 		UserId: uid,
@@ -148,7 +148,7 @@ func createEntityFromKeys(pubKey *packet.PublicKey, privKey *packet.PrivateKey) 
 			SigType:      packet.SigTypePositiveCert,
 			PubKeyAlgo:   packet.PubKeyAlgoRSA,
 			Hash:         pgpConfig.Hash(),
-			IsPrimaryId:  &isPrimaryId,
+			IsPrimaryId:  &isPrimaryID,
 			FlagsValid:   true,
 			FlagSign:     true,
 			FlagCertify:  true,

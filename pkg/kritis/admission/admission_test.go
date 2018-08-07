@@ -131,7 +131,7 @@ func Test_InvalidISP(t *testing.T) {
 			},
 		}}, nil
 	}
-	mockMetadata := func() (metadata.MetadataFetcher, error) {
+	mockMetadata := func() (metadata.Fetcher, error) {
 		return testutil.MockMetadataClient{
 			Vulnz: []metadata.Vulnerability{
 				{
@@ -141,7 +141,7 @@ func Test_InvalidISP(t *testing.T) {
 			PGPAttestations: []metadata.PGPAttestation{
 				{
 					Signature: "sig",
-					KeyId:     "secret",
+					KeyID:     "secret",
 				},
 			},
 		}, nil
@@ -265,7 +265,9 @@ func PodTestReviewHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	payload, err := json.Marshal(admitResponse)
 	if err != nil {
-		glog.Info(err)
+		glog.Error(err)
 	}
-	w.Write(payload)
+	if _, err := w.Write(payload); err != nil {
+		glog.Error(err)
+	}
 }

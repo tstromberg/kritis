@@ -26,13 +26,13 @@ import (
 )
 
 type Strategy interface {
-	HandleViolation(image string, pod *v1.Pod, violations []securitypolicy.SecurityPolicyViolation) error
+	HandleViolation(image string, pod *v1.Pod, violations []securitypolicy.Violation) error
 }
 
 type LoggingStrategy struct {
 }
 
-func (l *LoggingStrategy) HandleViolation(image string, pod *v1.Pod, violations []securitypolicy.SecurityPolicyViolation) error {
+func (l *LoggingStrategy) HandleViolation(image string, pod *v1.Pod, violations []securitypolicy.Violation) error {
 	glog.Info("HandleViolation via LoggingStrategy")
 	if len(violations) == 0 {
 		return nil
@@ -48,7 +48,7 @@ func (l *LoggingStrategy) HandleViolation(image string, pod *v1.Pod, violations 
 type AnnotationStrategy struct {
 }
 
-func (a *AnnotationStrategy) HandleViolation(image string, pod *v1.Pod, violations []securitypolicy.SecurityPolicyViolation) error {
+func (a *AnnotationStrategy) HandleViolation(image string, pod *v1.Pod, violations []securitypolicy.Violation) error {
 	// First, remove "kritis.grafeas.io/invalidImageSecPolicy" label/annotation in case it doesn't apply anymore
 	if err := pods.DeleteLabelsAndAnnotations(*pod, []string{constants.InvalidImageSecPolicy}, []string{constants.InvalidImageSecPolicy}); err != nil {
 		return err
@@ -60,7 +60,7 @@ func (a *AnnotationStrategy) HandleViolation(image string, pod *v1.Pod, violatio
 	var labelValue string
 	var annotationValue string
 	for _, v := range violations {
-		if v.Violation == securitypolicy.UnqualifiedImageViolation {
+		if v.Type == securitypolicy.UnqualifiedImageViolation {
 			labelValue = constants.InvalidImageSecPolicyLabelValue
 		}
 		annotationValue += string(v.Reason) + "\n"
@@ -76,7 +76,7 @@ type MemoryStrategy struct {
 	Violations map[string]bool
 }
 
-func (ms *MemoryStrategy) HandleViolation(image string, p *v1.Pod, v []securitypolicy.SecurityPolicyViolation) error {
+func (ms *MemoryStrategy) HandleViolation(image string, p *v1.Pod, v []securitypolicy.Violation) error {
 	ms.Violations[image] = true
 	return nil
 }
