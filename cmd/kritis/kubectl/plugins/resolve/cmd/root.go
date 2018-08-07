@@ -18,21 +18,15 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/grafeas/kritis/pkg/kritis/kubectl/plugins/resolve"
-	"github.com/grafeas/kritis/pkg/kritis/util"
-	"github.com/spf13/cobra"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-)
 
-const (
-	PWD                                 = "PWD"
-	KUBECTL_PLUGINS_LOCAL_FLAG_FILENAME = "KUBECTL_PLUGINS_LOCAL_FLAG_FILENAME"
-	KUBECTL_PLUGINS_LOCAL_FLAG_APPLY    = "KUBECTL_PLUGINS_LOCAL_FLAG_APPLY"
-	KUBECTL_PLUGINS_CALLER              = "KUBECTL_PLUGINS_CALLER"
+	"github.com/grafeas/kritis/pkg/kritis/kubectl/plugins/resolve"
+	"github.com/grafeas/kritis/pkg/kritis/util"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -69,17 +63,20 @@ var RootCmd = &cobra.Command{
 }
 
 func resolveApply() {
-	apply = apply || (os.Getenv(KUBECTL_PLUGINS_LOCAL_FLAG_APPLY) != "")
+	apply = apply || (os.Getenv("KUBECTL_PLUGINS_LOCAL_FLAG_APPLY") != "")
 }
 
 func resolveFilepaths() error {
-	if pluginFile := os.Getenv(KUBECTL_PLUGINS_LOCAL_FLAG_FILENAME); pluginFile != "" {
+	if pluginFile := os.Getenv("KUBECTL_PLUGINS_LOCAL_FLAG_FILENAME"); pluginFile != "" {
 		files = []string{pluginFile}
 	}
 	if len(files) == 0 {
 		return fmt.Errorf("please pass in a path to a file to resolve")
 	}
-	cwd := os.Getenv(PWD)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
 	for index, file := range files {
 		if _, err := os.Stat(file); os.IsNotExist(err) {
 			fullPath := filepath.Join(cwd, file)

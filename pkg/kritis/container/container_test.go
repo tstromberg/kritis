@@ -25,12 +25,10 @@ import (
 )
 
 var (
-	goodImage    = "gcr.io/kritis-project/kritis-server@sha256:b3f3eccfd27c9864312af3796067e7db28007a1566e1e042c5862eed3ff1b2c8"
-	anotherImage = "gcr.io/kritis-project/kritis-server1@sha256:b3f3eccfd27c9864312af3796067e7db28007a1566e1e042c5862eed3ff1b2c8"
-	badImage     = "gcr.io/kritis-project/kritis-server:tag"
+	goodImage = "gcr.io/kritis-project/kritis-server@sha256:b3f3eccfd27c9864312af3796067e7db28007a1566e1e042c5862eed3ff1b2c8"
 )
 
-func Test_ContainerSigCreation(t *testing.T) {
+func Test_AtomicSigCreation(t *testing.T) {
 	var tests = []struct {
 		name         string
 		imageName    string
@@ -56,13 +54,13 @@ func Test_ContainerSigCreation(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			image := strings.Join([]string{test.imageName, test.imageDigest}, test.concatString)
-			actual, err := NewAtomicContainerSig(image, nil)
-			expected := AtomicContainerSig{
+			actual, err := NewAtomicSig(image, nil)
+			expected := AtomicSig{
 				Critical: &Critical{
-					Identity: &ContainerIdentity{
+					Identity: &Identity{
 						DockerRef: test.imageName,
 					},
-					Image: &ContainerImage{
+					Image: &Image{
 						DockerDigest: test.imageDigest,
 					},
 					Type: "atomic container signature",
@@ -77,7 +75,7 @@ func Test_ContainerSigCreation(t *testing.T) {
 }
 
 func TestCreateAttestationSignature(t *testing.T) {
-	container, err := NewAtomicContainerSig(goodImage, map[string]string{})
+	container, err := NewAtomicSig(goodImage, map[string]string{})
 	if err != nil {
 		t.Fatalf("Unexpected error %s", err)
 	}
@@ -109,7 +107,7 @@ func TestCreateAttestationSignature(t *testing.T) {
 
 func TestValidateAttestationSignature(t *testing.T) {
 	secret := createSecret(t, "test")
-	container, err := NewAtomicContainerSig(goodImage, map[string]string{})
+	container, err := NewAtomicSig(goodImage, map[string]string{})
 	if err != nil {
 		t.Fatalf("Unexpected error %s", err)
 	}
@@ -144,7 +142,7 @@ func TestValidateAttestationSignature(t *testing.T) {
 }
 
 func TestGPGArmorSignVerifyIntegration(t *testing.T) {
-	container, err := NewAtomicContainerSig(goodImage, map[string]string{})
+	container, err := NewAtomicSig(goodImage, map[string]string{})
 	if err != nil {
 		t.Fatalf("Unexpected error %s", err)
 	}

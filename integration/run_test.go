@@ -36,6 +36,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
+
+	// Initialize all known client auth plugins
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 const (

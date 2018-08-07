@@ -73,10 +73,10 @@ func Test_UnqualifiedImage(t *testing.T) {
 		},
 	}
 	violations, err := ValidateImageSecurityPolicy(isp, "", testutil.MockMetadataClient{})
-	expected := []SecurityPolicyViolation{
+	expected := []Violation{
 		{
 			Vulnerability: metadata.Vulnerability{},
-			Violation:     UnqualifiedImageViolation,
+			Type:          UnqualifiedImageViolation,
 			Reason:        UnqualifiedImageViolationReason(""),
 		},
 	}
@@ -121,10 +121,10 @@ func Test_BlockallFail(t *testing.T) {
 		Vulnz: []metadata.Vulnerability{{CVE: "l", Severity: "LOW"}},
 	}
 	violations, err := ValidateImageSecurityPolicy(isp, testutil.QualifiedImage, mc)
-	expected := []SecurityPolicyViolation{
+	expected := []Violation{
 		{
 			Vulnerability: mc.Vulnz[0],
-			Violation:     ExceedsMaxSeverityViolation,
+			Type:          ExceedsMaxSeverityViolation,
 			Reason:        ExceedsMaxSeverityViolationReason(testutil.QualifiedImage, mc.Vulnz[0], isp),
 		},
 	}
@@ -147,10 +147,10 @@ func Test_MaxSeverityFail(t *testing.T) {
 		},
 	}
 	violations, err := ValidateImageSecurityPolicy(isp, testutil.QualifiedImage, mc)
-	expected := []SecurityPolicyViolation{
+	expected := []Violation{
 		{
 			Vulnerability: mc.Vulnz[2],
-			Violation:     ExceedsMaxSeverityViolation,
+			Type:          ExceedsMaxSeverityViolation,
 			Reason:        ExceedsMaxSeverityViolationReason(testutil.QualifiedImage, mc.Vulnz[2], isp),
 		},
 	}
@@ -220,15 +220,15 @@ func Test_OnlyFixesNotAvailableFail(t *testing.T) {
 		},
 	}
 	violations, err := ValidateImageSecurityPolicy(isp, testutil.QualifiedImage, mc)
-	expected := []SecurityPolicyViolation{
+	expected := []Violation{
 		{
 			Vulnerability: mc.Vulnz[1],
-			Violation:     FixesNotAvailableViolation,
+			Type:          FixesNotAvailableViolation,
 			Reason:        FixesNotAvailableViolationReason(testutil.QualifiedImage, mc.Vulnz[1]),
 		},
 		{
 			Vulnerability: mc.Vulnz[3],
-			Violation:     FixesNotAvailableViolation,
+			Type:          FixesNotAvailableViolation,
 			Reason:        FixesNotAvailableViolationReason(testutil.QualifiedImage, mc.Vulnz[3]),
 		},
 	}
@@ -291,7 +291,7 @@ func Test_severityWithinThreshold(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err, got := severityWithinThreshold(test.maxSeverity, test.severity)
+			got, err := severityWithinThreshold(test.maxSeverity, test.severity)
 			if err != nil {
 				t.Errorf("%s: severityWithinThreshold(%s, %s) encountered error: %v", test.maxSeverity, test.severity, test.name, err)
 			}

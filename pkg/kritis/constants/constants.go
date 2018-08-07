@@ -21,15 +21,18 @@ const (
 	BLOCKALL = "BLOCKALL"
 
 	// InvalidImageSecPolicy is the key for labels and annotations
-	InvalidImageSecPolicy           = "kritis.grafeas.io/invalidImageSecPolicy"
+	InvalidImageSecPolicy = "kritis.grafeas.io/invalidImageSecPolicy"
+	// InvalidImageSecPolicyLabelValue is the value assigned to unqualified image violations
 	InvalidImageSecPolicyLabelValue = "invalidImageSecPolicy"
 
 	// Breakglass is the key for the breakglass annotation
 	Breakglass = "kritis.grafeas.io/breakglass"
 
-	// A list of label values
+	// PreviouslyAttestedAnnotation is the label value used when an an annotation has been previously attested
 	PreviouslyAttestedAnnotation = "Previously attested."
-	NoAttestationsAnnotation     = "No valid attestations present. This pod will not be able to restart in future"
+
+	// NoAttestationsAnnotation is the label value used when there are no valid attestations present
+	NoAttestationsAnnotation = "No valid attestations present. This pod will not be able to restart in future"
 
 	// Atomic Container Signature type
 	AtomicContainerSigType = "atomic container signature"
@@ -40,7 +43,7 @@ const (
 
 	// Constants for Metadata Library
 	PageSize          = int32(100)
-	ResourceUrlPrefix = "https://"
+	ResourceURLPrefix = "https://"
 )
 
 var (

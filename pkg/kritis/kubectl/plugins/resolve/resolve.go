@@ -20,10 +20,11 @@ import (
 	"fmt"
 	"strings"
 
+	"io/ioutil"
+
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
 )
 
 const (

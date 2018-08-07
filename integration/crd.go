@@ -26,18 +26,18 @@ import (
 )
 
 // A map of crd type to names of the expected CRDs to create
-var CRDS = map[string]string{
+var crdNames = map[string]string{
 	"imagesecuritypolicies.kritis.grafeas.io": "my-isp",
 }
 
-var CRD_EXAMPLE_FILES = []string{
+var crdExamples = []string{
 	// TODO(aaron-prindle) add back attestation-authority-example.yaml
 	// "attestation-authority-example.yaml",
 	"image-security-policy-example.yaml",
 }
 
 func createCRDExamples(t *testing.T, ns *v1.Namespace) {
-	for _, crd := range CRD_EXAMPLE_FILES {
+	for _, crd := range crdExamples {
 		crdCmd := exec.Command("kubectl", "create", "-f", crd, "-n", ns.Name)
 		crdCmd.Dir = "../artifacts/integration-examples"
 		_, err := integration_util.RunCmdOut(crdCmd)
@@ -48,7 +48,7 @@ func createCRDExamples(t *testing.T, ns *v1.Namespace) {
 }
 
 func waitForCRDExamples(t *testing.T, ns *v1.Namespace) {
-	for crd, name := range CRDS {
+	for crd, name := range crdNames {
 		err := wait.PollImmediate(500*time.Millisecond, time.Minute*2, func() (bool, error) {
 			crdCmd := exec.Command("kubectl", "get", crd, name, "-n", ns.Name)
 			_, err := integration_util.RunCmdOut(crdCmd)

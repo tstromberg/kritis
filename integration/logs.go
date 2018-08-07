@@ -23,9 +23,11 @@ import (
 	"k8s.io/api/core/v1"
 )
 
+const oneUp = "../"
+
 func getPodLogs(t *testing.T, pod string, ns *v1.Namespace) string {
 	cmd := exec.Command("kubectl", "logs", pod, "-n", ns.Name)
-	cmd.Dir = "../"
+	cmd.Dir = oneUp
 	output, err := integration_util.RunCmdOut(cmd)
 	if err != nil {
 		t.Errorf("%s: %s %v", pod, output, err)
@@ -36,13 +38,13 @@ func getPodLogs(t *testing.T, pod string, ns *v1.Namespace) string {
 func getKritisLogs(t *testing.T) string {
 	cmd := exec.Command("kubectl", "logs", "-l",
 		"app=kritis-validation-hook")
-	cmd.Dir = "../"
+	cmd.Dir = oneUp
 	output, err := integration_util.RunCmdOut(cmd)
 	if err != nil {
 		t.Fatalf("kritis: %s %v", output, err)
 	}
 	cmd = exec.Command("kubectl", "get", "imagesecuritypolicy")
-	cmd.Dir = "../"
+	cmd.Dir = oneUp
 	output2, err := integration_util.RunCmdOut(cmd)
 	if err != nil {
 		t.Fatalf("kritis: %s %v", output2, err)

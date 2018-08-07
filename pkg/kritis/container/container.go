@@ -25,28 +25,28 @@ import (
 	"github.com/grafeas/kritis/pkg/kritis/secrets"
 )
 
-// AtomicContainerSig represents Red Hat’s Atomic Host attestation signature format
+// AtomicSig represents Red Hat’s Atomic Host attestation signature format
 // defined here https://github.com/aweiteka/image/blob/e5a20d98fe698732df2b142846d007b45873627f/docs/signature.md
-type AtomicContainerSig struct {
+type AtomicSig struct {
 	Critical *Critical         `json:"critical"`
 	Optional map[string]string `json:"optional,omitempty"`
 }
 
-func NewAtomicContainerSig(image string, optional map[string]string) (*AtomicContainerSig, error) {
+func NewAtomicSig(image string, optional map[string]string) (*AtomicSig, error) {
 	critical, err := NewCritical(image)
 	if err != nil {
 		return nil, err
 	}
-	return &AtomicContainerSig{
+	return &AtomicSig{
 		Critical: critical,
 		Optional: optional,
 	}, nil
 }
 
 type Critical struct {
-	Identity *ContainerIdentity `json:"identity"`
-	Image    *ContainerImage    `json:"image"`
-	Type     string             `json:"type"`
+	Identity *Identity `json:"identity"`
+	Image    *Image    `json:"image"`
+	Type     string    `json:"type"`
 }
 
 func NewCritical(image string) (*Critical, error) {
@@ -55,33 +55,33 @@ func NewCritical(image string) (*Critical, error) {
 		return nil, err
 	}
 	return &Critical{
-		Identity: NewContainerIdentity(digest.Repository.Name()),
-		Image:    NewContainerImage(digest.DigestStr()),
+		Identity: NewIdentity(digest.Repository.Name()),
+		Image:    NewImage(digest.DigestStr()),
 		Type:     constants.AtomicContainerSigType,
 	}, nil
 }
 
-type ContainerIdentity struct {
+type Identity struct {
 	DockerRef string `json:"docker-reference"`
 }
 
-func NewContainerIdentity(image string) *ContainerIdentity {
-	return &ContainerIdentity{
+func NewIdentity(image string) *Identity {
+	return &Identity{
 		DockerRef: image,
 	}
 }
 
-type ContainerImage struct {
+type Image struct {
 	DockerDigest string `json:"docker-manifest-digest"`
 }
 
-func NewContainerImage(digest string) *ContainerImage {
-	return &ContainerImage{
+func NewImage(digest string) *Image {
+	return &Image{
 		DockerDigest: digest,
 	}
 }
 
-func (acs *AtomicContainerSig) Json() (string, error) {
+func (acs *AtomicSig) JSON() (string, error) {
 	bytes, err := json.Marshal(acs)
 	if err != nil {
 		return "", err
@@ -89,16 +89,16 @@ func (acs *AtomicContainerSig) Json() (string, error) {
 	return string(bytes), nil
 }
 
-func (acs *AtomicContainerSig) CreateAttestationSignature(pgpSigningKey *secrets.PGPSigningSecret) (string, error) {
-	hostStr, err := acs.Json()
+func (acs *AtomicSig) CreateAttestationSignature(pgpSigningKey *secrets.PGPSigningSecret) (string, error) {
+	hostStr, err := acs.JSON()
 	if err != nil {
 		return "", err
 	}
 	return attestation.CreateMessageAttestation(pgpSigningKey.PublicKey, pgpSigningKey.PrivateKey, hostStr)
 }
 
-func (acs *AtomicContainerSig) VerifyAttestationSignature(publicKey string, attestationHash string) error {
-	hostStr, err := acs.Json()
+func (acs *AtomicSig) VerifyAttestationSignature(publicKey string, attestationHash string) error {
+	hostStr, err := acs.JSON()
 	if err != nil {
 		return err
 	}

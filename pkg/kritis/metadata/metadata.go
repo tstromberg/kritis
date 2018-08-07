@@ -22,7 +22,7 @@ import (
 	containeranalysispb "google.golang.org/genproto/googleapis/devtools/containeranalysis/v1alpha1"
 )
 
-type MetadataFetcher interface {
+type Fetcher interface {
 	// GetVulnerabilities returns package vulnerabilities for a given image.
 	GetVulnerabilities(containerImage string) ([]Vulnerability, error)
 	// Create Attesatation Occurrence for an image.
@@ -43,9 +43,9 @@ type Vulnerability struct {
 	CVE             string
 }
 
-// PGPAttestation represents the Signature and the Singer Key Id from the
+// PGPAttestation represents the Signature and the Signer Key ID from the
 // containeranalysis Occurrence_Attestation instance.
 type PGPAttestation struct {
 	Signature string
-	KeyId     string
+	KeyID     string
 }
