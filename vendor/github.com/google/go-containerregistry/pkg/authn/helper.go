@@ -65,6 +65,7 @@ func (h *helper) Authorization() (string, error) {
 	// We want to execute:
 	//   echo -n {domain} | docker-credential-{name} get
 	cmd := exec.Command(helperName, "get")
+	fmt.Printf("Executing: %s ...", cmd.Args)
 
 	// Some keychains expect a scheme:
 	// https://github.com/bazelbuild/rules_docker/issues/111

@@ -17,15 +17,18 @@ limitations under the License.
 package cmd
 
 import (
+	"flag"
 	"fmt"
-	"github.com/grafeas/kritis/pkg/kritis/kubectl/plugins/resolve"
-	"github.com/grafeas/kritis/pkg/kritis/util"
-	"github.com/spf13/cobra"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/golang/glog"
+	"github.com/grafeas/kritis/pkg/kritis/kubectl/plugins/resolve"
+	"github.com/grafeas/kritis/pkg/kritis/util"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -43,6 +46,8 @@ var (
 func init() {
 	RootCmd.PersistentFlags().VarP(&files, "filename", "f", "Filename to resolve. Set it repeatedly for multiple filenames.")
 	RootCmd.PersistentFlags().BoolVarP(&apply, "apply", "a", false, "Apply changes using 'kubectl apply -f'.")
+	RootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
+	flag.CommandLine.Parse([]string{})
 }
 
 var RootCmd = &cobra.Command{
@@ -79,7 +84,11 @@ func resolveFilepaths() error {
 	if len(files) == 0 {
 		return fmt.Errorf("please pass in a path to a file to resolve")
 	}
-	cwd := os.Getenv(PWD)
+	glog.Infof("Resolving: %s", files)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
 	for index, file := range files {
 		if _, err := os.Stat(file); os.IsNotExist(err) {
 			fullPath := filepath.Join(cwd, file)
@@ -118,6 +127,7 @@ func applyChanges(substitutes map[string]string, writer io.Writer) error {
 
 	for _, contents := range substitutes {
 		cmd := exec.Command(kubectl, "apply", "-f", "-")
+		glog.Infof("Executing %s ...", cmd.Args)
 		cmd.Stdin = strings.NewReader(contents)
 		output, err := cmd.CombinedOutput()
 		fmt.Fprintln(writer, string(output))
