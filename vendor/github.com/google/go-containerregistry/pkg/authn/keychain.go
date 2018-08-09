@@ -39,12 +39,14 @@ type defaultKeychain struct{}
 
 // configDir returns the directory containing Docker's config.json
 func configDir() (string, error) {
+	fmt.Printf("docker configDir")
 	if dc := os.Getenv("DOCKER_CONFIG"); dc != "" {
 		return dc, nil
 	}
 	if h := dockerUserHomeDir(); h != "" {
 		return path.Join(dockerUserHomeDir(), ".docker"), nil
 	}
+	fmt.Printf("no home dir :(")
 	return "", errNoHomeDir
 }
 

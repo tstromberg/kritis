@@ -82,7 +82,7 @@ func Image(ref name.Reference, options ...ImageOption) (v1.Image, error) {
 		transport: http.DefaultTransport,
 		ref:       ref,
 	}
-
+	fmt.Printf("opener: %+v\n", img)
 	for _, option := range options {
 		if err := option(img); err != nil {
 			return nil, err
@@ -92,11 +92,13 @@ func Image(ref name.Reference, options ...ImageOption) (v1.Image, error) {
 }
 
 func (r *remoteImage) url(resource, identifier string) url.URL {
-	return url.URL{
+	u := url.URL{
 		Scheme: transport.Scheme(r.ref.Context().Registry),
 		Host:   r.ref.Context().RegistryStr(),
 		Path:   fmt.Sprintf("/v2/%s/%s/%s", r.ref.Context().RepositoryStr(), resource, identifier),
 	}
+	fmt.Printf("URL: %+v\n", u)
+	return u
 }
 
 func (r *remoteImage) MediaType() (types.MediaType, error) {
