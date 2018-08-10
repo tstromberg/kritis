@@ -90,7 +90,7 @@ func Test_UnqualifiedImage(t *testing.T) {
 		httpStatus: http.StatusOK,
 		allowed:    false,
 		status:     constants.FailureStatus,
-		message:    "image:tag is not a fully qualified image",
+		message:    `image:tag is not a fully qualified image.\n\t\t\t  You can run 'kubectl plugin resolve-tags' to qualify all images with a digest.\n\t\t\t  Instructions for installing the plugin can be found at https://github.com/grafeas/kritis/blob/master/cmd/kritis/kubectl/plugins/resolve`,
 	})
 }
 
@@ -135,7 +135,8 @@ func Test_InvalidISP(t *testing.T) {
 		return &testutil.MockMetadataClient{
 			Vulnz: []metadata.Vulnerability{
 				{
-					Severity: "MEDIUM",
+					Severity:        "MEDIUM",
+					HasFixAvailable: true,
 				},
 			},
 			PGPAttestations: []metadata.PGPAttestation{
@@ -210,6 +211,9 @@ func mockValidPod() func(r *http.Request) (*v1.Pod, v1beta1.AdmissionReview, err
 }
 
 func RunTest(t *testing.T, tc testConfig) {
+	// TODO(tstromberg): Refactor function so that it isn't a test helper.
+	t.Helper()
+
 	// Create a request to pass to our handler.
 	req, err := http.NewRequest("GET", "/", nil)
 	if err != nil {
@@ -234,8 +238,7 @@ func RunTest(t *testing.T, tc testConfig) {
 	expected := `{"response":{"uid":"","allowed":%t,"status":{"metadata":{},"status":"%s","message":"%s"}}}`
 	expected = fmt.Sprintf(expected, tc.allowed, tc.status, tc.message)
 	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v",
-			rr.Body.String(), expected)
+		t.Errorf("unexpected response: got:\n%v\nwant:\n%v", rr.Body.String(), expected)
 	}
 }
 
