@@ -7,7 +7,7 @@ The only currently supported backend for vulnerability data is the [Google Cloud
 - [Google Cloud](https://cloud.google.com) account with [billing enabled](https://console.cloud.google.com/billing)
 - [Google Cloud SDK](https://cloud.google.com/sdk/docs/) (gcloud)
 - [Kubernetes](https://kubernetes.io/) 1.9.2+
-- [Helm](https://helm.sh/)
+- [GnuPG](https://gnupg.org/download/)
 
 ## Step #1: Create a Google Cloud Project
 
@@ -31,8 +31,17 @@ NOTE: Your account must be whitelisted to enable the Container Analysis API. To 
 
 Once approved, enable the necessary API's:
 
-- [Enable the Container Analysis API](https://console.cloud.google.com/flows/enableapi?apiid=containeranalysis.googleapis.com&redirect=https://cloud.google.com/container-registry/docs/get-image-vulnerabilities)
-- [Enable the Kubernetes API](https://console.cloud.google.com/projectselector/kubernetes)
+Enable the Container Analysis API:
+
+```
+gcloud services enable containeranalysis.googleapis.com
+```
+
+Enable the Kubernetes API:
+
+```
+gcloud services enable container.googleapis.com
+```
 
 Wait for the above API's to be fully enabled, then enable vulnerability scanning:
 
@@ -123,11 +132,29 @@ helm init --wait --service-account tiller
 
 ## Installing Kritis to your cluster
 
-Install the `resolve-tags` plug-in:
+Install the `resolve-tags` kubectl plugin and binary:
+
+## Mac OS X
 
 ```shell
-make install-plugin
+curl -LO https://storage.googleapis.com/resolve-tags/latest/resolve-tags-darwin-amd64.tar.gz && \
+  RESOLVE_TAGS_DIR=$HOME/.kube/plugins/resolve && \
+  mkdir -p $RESOLVE_TAGS_DIR && tar -C $RESOLVE_TAGS_DIR -xzf resolve-tags-darwin-amd64.tar.gz && \
+  mv $RESOLVE_TAGS_DIR/resolve-tags-darwin-amd64 $RESOLVE_TAGS_DIR/resolve-tags && \
+  sudo cp $RESOLVE_TAGS_DIR/resolve-tags /usr/local/bin/
 ```
+
+## Linux
+
+```shell
+curl -LO https://storage.googleapis.com/resolve-tags/latest/resolve-tags-linux-amd64.tar.gz && \
+  RESOLVE_TAGS_DIR=$HOME/.kube/plugins/resolve && \
+  mkdir -p $RESOLVE_TAGS_DIR && tar -C $RESOLVE_TAGS_DIR -xzf resolve-tags-linux-amd64.tar.gz && \
+  mv $RESOLVE_TAGS_DIR/resolve-tags-linux-amd64 $RESOLVE_TAGS_DIR/resolve-tags && \
+  sudo cp $RESOLVE_TAGS_DIR/resolve-tags /usr/local/bin/
+```
+
+For more information, please see the resolve-tags [documentation](cmd/kritis/kubectl/plugins/resolve/README.md).
 
 Install kritis to your cluster:
 
@@ -184,7 +211,7 @@ example:
 
 ```shell
 NAME          REVISION  UPDATED                   STATUS    CHART         NAMESPACE
-loopy-numbat    1       Fri Jul 27 14:25:44 2018  DEPLOYED  kritis-0.1.0  default  
+loopy-numbat    1       Fri Jul 27 14:25:44 2018  DEPLOYED  kritis-0.1.0  default
 ```
 
 Then delete the name of the release:

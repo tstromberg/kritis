@@ -2,7 +2,7 @@
 
 ## Before you begin
 
-First [Install Kritis](install.md) to your cluster.
+First **[Install Kritis](install.md)** to your cluster.
 
 Configure gcloud to use the correct project. You may use `gcloud projects list` to see a list of them.
 
@@ -35,8 +35,52 @@ spec:
       - providers/goog-vulnz/notes/CVE-2017-1000081
 EOF
 ```
+### 2. Setting up an AttestationAuthority
+Kritis relies on user defined AttestationAuthorities to attest images admitted. Attested images will be always admitted in future.
 
-### 2. Copy a vulnerable image
+Create a public and private key pair:
+
+Note: Please create a key with Empty Passphase. We are working on adding support for [passphrase](https://github.com/grafeas/kritis/issues/186)
+```shell
+gpg --quick-generate-key --yes my.attestator@example.com
+
+gpg --armor --export my.attestator@example.com > gpg.pub
+
+gpg --armor --export-secret-keys my.attestator@example.com > gpg.priv
+```
+Create a secret using the exported public and private keys
+```shell
+kubectl create secret generic my-attestator --from-file=public=gpg.pub --from-file=private=gpg.priv
+```
+Finally create an attestation authority
+1. Grab the base64 encoded value of public key for the secret you just created.
+
+On Mac OS X,
+```shell
+PUBLIC_KEY=`base64 gpg.pub`
+```
+On Linux
+```shell
+PUBLIC_KEY=`base64 gpg.pub -w 0`
+```
+2.  Create an attestation authority.
+```shell
+cat <<EOF | kubectl apply -f - \
+
+apiVersion: kritis.grafeas.io/v1beta1
+kind: AttestationAuthority
+metadata:
+    name: my-attestator
+    namespace: default
+spec:
+    noteReference: v1alpha1/projects/$PROJECT
+    privateKeySecretName: my-attestator
+    publicKeyData: $PUBLIC_KEY
+EOF
+```
+This `AttestationAuthority` will create [Attestation Note](https://github.com/grafeas/grafeas#definition-of-terms) in project specified in `$PROJECT` variable and attest valid images using the secret `my-attestator` which we created.
+
+### 3. Copy a vulnerable image
 
 The [Container Analysis API](https://cloud.google.com/container-analysis/api/reference/rest/) only reveals vulnerability information for images owned by your project. This makes a copy of a sample vulnerable image into your container registry:
 
@@ -55,7 +99,7 @@ gcloud alpha container images describe --show-package-vulnerability \
 
 For more information about copying images, see [Google Cloud: Pushing and Pulling Images](https://cloud.google.com/container-registry/docs/pushing-and-pulling).
 
-### 3. Deploy a vulnerable image
+### 4. Deploy a vulnerable image
 
 Deploy a pod containing our vulnerable image:
 
@@ -66,6 +110,9 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: java-with-vuln
+  labels: {
+    "kritis.grafeas.io/tutorial":""
+  }
 spec:
   containers:
   - name: java-with-vuln
@@ -100,7 +147,7 @@ $ kubectl logs -f kritis-validation-hook-56d9d7d4f5-54mqt
         which has fixes available
 ```
 
-### 4. Deploying an image by tag name
+### 5. Deploying an image by tag name
 
 Create an example YAML which uses the `latest` image tag:
 
@@ -111,6 +158,9 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: java-with-vuln-tagged
+  labels: {
+    "kritis.grafeas.io/tutorial":""
+  }
 spec:
   containers:
   - name: java-with-vuln-tagged
@@ -139,7 +189,7 @@ Instead, to deploy images by a tag name, use the `resolve-tags` plugin:
 kubectl plugin resolve-tags -f resolve.yaml --apply true
 ```
 
-### 5. Whitelist an image
+### 6. Whitelist an image
 
 To whitelist an image, specify a path containing a tag (such as `latest`), or sha256:
 
@@ -170,6 +220,9 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: java-with-vuln-whitelist
+  labels: {
+    "kritis.grafeas.io/tutorial":""
+  }
 spec:
   containers:
   - name: java-with-vuln-whitelist
@@ -179,7 +232,7 @@ spec:
 EOF
 ```
 
-### 6. Force deployment with a breakglass annotation
+### 7. Force deployment with a breakglass annotation
 
 Rather than white-listing an image, you can also force a deployment  that normally fails validation, by adding a *breakglass* annotation to the pod spec:
 
@@ -190,6 +243,9 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: java-with-vuln-breakglass
+  labels: {
+    "kritis.grafeas.io/tutorial":""
+  }
   annotations: {
     "kritis.grafeas.io/breakglass": "true"
   }
@@ -211,6 +267,9 @@ apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
   name: java-with-vuln-breakglass-deployment
+  labels: {
+    "kritis.grafeas.io/tutorial":""
+  }
   annotations: {
     "kritis.grafeas.io/breakglass": "true"
   }
@@ -231,4 +290,54 @@ spec:
 EOF
 ```
 
+### Kritis Background Cron.
+Kritis also runs a hourly cron in background to continuously validate and reconcile policies. Images can go out of policy while running.
+
+This cron uses the same policies as the webhook, and will audit via adding a label `kritis.grafeas.io/invalidImageSecPolicy` and an annotation `kritis.grafeas.io/invalidImageSecPolicy` with reason.
+
+To run the cron in foreground:
+```shell
+POD_ID=$(kubectl get po -l label=kritis-validation-hook -o custom-columns=:metadata.name --no-headers=true)
+
+kubectl exec $POD_ID -- /kritis/kritis-server --run-cron
+```
+The output is similar to this.
+```shell
+I0810 23:46:10.353516      23 cron.go:103] Checking po java-with-vuln
+I0810 23:46:10.354142      23 review.go:68] Validating against ImageSecurityPolicy my-isp
+I0810 23:46:10.354395      23 review.go:70] Check if gcr.io/tejaldesai-personal/java-with-vuln@sha256:b3f3eccfd27c9864312af3796067e7db28007a1566e1e042c5862eed3ff1b2c8 as valid Attestations.
+I0810 23:46:10.881752      23 strategy.go:98] Adding label attested and annotation Previously attested.
+I0810 23:46:10.997035      23 review.go:77] Getting vulnz for gcr.io/tejaldesai-personal/java-with-vuln@sha256:b3f3eccfd27c9864312af3796067e7db28007a1566e1e042c5862eed3ff1b2c8
+I0810 23:46:12.743845      23 strategy.go:81] Adding label invalidImageSecPolicy and annotation found 3 CVEs
+E0810 23:46:12.882533      23 cron.go:105] found violations in gcr.io/tejaldesai-personal/java-with-vuln@sha256:b3f3eccfd27c9864312af3796067e7db28007a1566e1e042c5862eed3ff1b2c8
+...
+```
+
+To view the pods with `kritis.grafeas.io/invalidImageSecPolicy` label:
+```shell
+ kubectl get po  -l kritis.grafeas.io/invalidImageSecPolicy=invalidImageSecPolicy --show-labels
+```
+The output is similar to this:
+```shell
+NAME               READY     STATUS             RESTARTS   AGE       LABELS
+java-with-vuln     0/1       Completed          10         29m       kritis.grafeas.io/attestation=attested,kritis.grafeas.io/invalidImageSecPolicy=invalidImageSecPolicy
+kritis-predelete   0/1       Completed          0          34m       kritis.grafeas.io/attestation=notAttested,kritis.grafeas.io/invalidImageSecPolicy=invalidImageSecPolicy
+```
+
 That brings us to the end of the tutorial!
+
+### 7. Cleanup
+
+You can delete all pods and deployments created in this tutorial by running:
+
+```
+kubectl delete pods,deployments --selector=kritis.grafeas.io/tutorial
+```
+
+To delete the image you pushed to your project run:
+
+```
+gcloud container images delete gcr.io/$PROJECT/java-with-vuln:latest
+```
+
+You can uninstall kritis by following these [instructions](install.md#Uninstalling-Kritis).
