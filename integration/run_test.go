@@ -75,6 +75,7 @@ func processTemplate(path, ns string) (string, error) {
 	return tf.Name(), nil
 }
 
+// cleanupTemplate resources referenced by an expanded text template
 func cleanupTemplate(t *testing.T, path, ns string) error {
 	if !*cleanup {
 		t.Logf("Skipping cleanup of %s because --cleanup=false", path)
@@ -108,7 +109,7 @@ func webhooks(cs kubernetes.Interface) ([]string, error) {
 	return names, nil
 }
 
-// testNamespace configures a randomized namespace name, returns cleanu pfunction.
+// testNamespace configures a randomized namespace name, returns cleanup function.
 func testNamespace(cs kubernetes.Interface) (*v1.Namespace, func(*testing.T), error) {
 	name := integration_util.RandomID()[0:8]
 	ns, err := cs.CoreV1().Namespaces().Create(&v1.Namespace{
@@ -157,9 +158,10 @@ func installKritis(cs kubernetes.Interface, ns *v1.Namespace) (func(*testing.T),
 		"--set", fmt.Sprintf("serviceNameDeployments=kritis-validation-hook-deployments-%s", ns.Name),
 	)
 	out, err := integration_util.RunCmdOut(cmd)
+
+	// Install errors are difficult to debug, so spend the effort to generate a great error message.
 	if err != nil {
 		hooks, err2 := webhooks(cs)
-		// Cheesy, I know.
 		if err2 != nil {
 			hooks = []string{err2.Error()}
 		}
@@ -188,13 +190,18 @@ func installKritis(cs kubernetes.Interface, ns *v1.Namespace) (func(*testing.T),
 		out, err = integration_util.RunCmdOut(cmd)
 		if err != nil {
 			t.Errorf("helm delete failed: %v\nout: %s", err, out)
-			cleanupInstall(ns)
+			if err2 := cleanupInstall(ns); err2 != nil {
+				t.Errorf("cleanup failed: %v", err2)
+			}
 			t.Fatalf("Abandoning Kritis deinstall.")
 		}
-		// make sure kritis-predelete pod completes
+
+		// If helm delete succeeds, ensure that the kritis-predelete pod completes
 		if err := kubernetesutil.WaitForPodComplete(cs.CoreV1().Pods(ns.Name), predeletePod); err != nil {
 			t.Errorf("predelete pod didn't complete: %v \n %s", err, podLogs(predeletePod, ns))
-			cleanupInstall(ns)
+			if err2 := cleanupInstall(ns); err2 != nil {
+				t.Errorf("cleanup failed: %v", err2)
+			}
 		}
 	}
 
@@ -262,17 +269,6 @@ func setUp(t *testing.T) (kubernetes.Interface, *v1.Namespace, func(t *testing.T
 	if err != nil {
 		t.Fatalf("testNamespace: %v", err)
 	}
-	createCRDExamples(t, ns)
-	waitForCRDExamples(t, ns)
-
-	var testCases = []struct {
-		template string
-		command  string
-
-		deployments    []string
-		pods           []string
-		replicasets    []string
-		attestedImages []string
 
 	t.Logf("setup: installing kritis with image version %s in namespace %s...", version.Commit, ns.Name)
 	instCleanup, err := installKritis(cs, ns)
@@ -393,7 +389,6 @@ func TestKritisISPLogic(t *testing.T) {
 				fmt.Sprintf("gcr.io/%s/acceptable-vulnz@sha256:2a81797428f5cab4592ac423dc3049050b28ffbaa3dd11000da942320f9979b6", *gcpProject),
 			},
 		},
-
 	}
 	for _, tc := range testCases {
 		t.Run(tc.template, func(t *testing.T) {
@@ -522,7 +517,8 @@ func TestKritisCron(t *testing.T) {
 			}
 
 			// as kubectl exec opens a tty, out is not monitored
-			cmd = exec.Command("kubectl", "exec", "--namespace", ns.Name, strings.TrimSpace(string(hookPod)), "--", "/kritis/kritis-server", "--run-cron")
+			cmd = exec.Command("kubectl", "exec", "--namespace", ns.Name,
+				strings.TrimSpace(string(hookPod)), "--", "/kritis/kritis-server", "--run-cron")
 			if err = cmd.Start(); err != nil {
 				t.Errorf("start failed for %s: %v", cmd.Args, err)
 			}

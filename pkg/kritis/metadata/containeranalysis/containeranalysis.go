@@ -31,7 +31,7 @@ import (
 	"github.com/grafeas/kritis/pkg/kritis/util"
 	"golang.org/x/net/context"
 	"google.golang.org/api/iterator"
-	containeranalysispb "google.golang.org/genproto/googleapis/devtools/containeranalysis/v1alpha1"
+	cpb "google.golang.org/genproto/googleapis/devtools/containeranalysis/v1alpha1"
 )
 
 // Container Analysis Library Specific Constants.
@@ -41,38 +41,38 @@ const (
 )
 
 // The ContainerAnalysis struct implements Fetcher Interface.
-type ContainerAnalysis struct {
+type Client struct {
 	client *gen.Client
 	ctx    context.Context
 }
 
-func NewContainerAnalysisClient() (*ContainerAnalysis, error) {
+func New() (*Client, error) {
 	ctx := context.Background()
 	client, err := gen.NewClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &ContainerAnalysis{
+	return &Client{
 		client: client,
 		ctx:    ctx,
 	}, nil
 }
 
-// GetVulnerabilites gets Package Vulnerabilities Occurrences for a specified image.
-func (c ContainerAnalysis) GetVulnerabilities(containerImage string) ([]metadata.Vulnerability, error) {
+//Vulnerabilities gets Package Vulnerabilities Occurrences for a specified image.
+func (c Client) Vulnerabilities(containerImage string) ([]metadata.Vulnerability, error) {
 	occs, err := c.fetchOccurrence(containerImage, PkgVulnerability)
 	if err != nil {
 		return nil, err
 	}
 	vulnz := []metadata.Vulnerability{}
 	for _, occ := range occs {
-		vulnz = append(vulnz, GetVulnerabilityFromOccurence(occ))
+		vulnz = append(vulnz, getVulnerabilityFromOccurence(occ))
 	}
 	return vulnz, nil
 }
 
-// GetAttestation gets AttesationAuthority Occurrences for a specified image.
-func (c ContainerAnalysis) GetAttestations(containerImage string) ([]metadata.PGPAttestation, error) {
+//Attestations gets AttesationAuthority Occurrences for a specified image.
+func (c Client) Attestations(containerImage string) ([]metadata.PGPAttestation, error) {
 	occs, err := c.fetchOccurrence(containerImage, AttestationAuthority)
 	if err != nil {
 		return nil, err
@@ -84,19 +84,19 @@ func (c ContainerAnalysis) GetAttestations(containerImage string) ([]metadata.PG
 	return p, nil
 }
 
-func (c ContainerAnalysis) fetchOccurrence(containerImage string, kind string) ([]*containeranalysispb.Occurrence, error) {
+func (c Client) fetchOccurrence(containerImage string, kind string) ([]*cpb.Occurrence, error) {
 	// Make sure container image valid and is a GCR image
 	if !isValidImageOnGCR(containerImage) {
 		return nil, fmt.Errorf("%s is not a valid image hosted in GCR", containerImage)
 	}
 	project := strings.Split(containerImage, "/")[1]
-	req := &containeranalysispb.ListOccurrencesRequest{
+	req := &cpb.ListOccurrencesRequest{
 		Filter:   fmt.Sprintf("resource_url=%q AND kind=%q", getResourceURL(containerImage), kind),
 		PageSize: constants.PageSize,
 		Parent:   fmt.Sprintf("projects/%s", project),
 	}
 	it := c.client.ListOccurrences(c.ctx, req)
-	occs := []*containeranalysispb.Occurrence{}
+	occs := []*cpb.Occurrence{}
 	for {
 		occ, err := it.Next()
 		if err == iterator.Done {
@@ -110,20 +110,20 @@ func (c ContainerAnalysis) fetchOccurrence(containerImage string, kind string) (
 	return occs, nil
 }
 
-func GetVulnerabilityFromOccurence(occ *containeranalysispb.Occurrence) metadata.Vulnerability {
-	vulnDetails := occ.GetDetails().(*containeranalysispb.Occurrence_VulnerabilityDetails).VulnerabilityDetails
+func getVulnerabilityFromOccurence(occ *cpb.Occurrence) metadata.Vulnerability {
+	vulnDetails := occ.GetDetails().(*cpb.Occurrence_VulnerabilityDetails).VulnerabilityDetails
 	hasFixAvailable := isFixAvaliable(vulnDetails.GetPackageIssue())
 	vulnerability := metadata.Vulnerability{
-		Severity:        containeranalysispb.VulnerabilityType_Severity_name[int32(vulnDetails.Severity)],
+		Severity:        cpb.VulnerabilityType_Severity_name[int32(vulnDetails.Severity)],
 		HasFixAvailable: hasFixAvailable,
 		CVE:             occ.GetNoteName(),
 	}
 	return vulnerability
 }
 
-func isFixAvaliable(pis []*containeranalysispb.VulnerabilityType_PackageIssue) bool {
+func isFixAvaliable(pis []*cpb.VulnerabilityType_PackageIssue) bool {
 	for _, pi := range pis {
-		if pi.GetFixedLocation().GetVersion().Kind == containeranalysispb.VulnerabilityType_Version_MAXIMUM {
+		if pi.GetFixedLocation().GetVersion().Kind == cpb.VulnerabilityType_Version_MAXIMUM {
 			// If FixedLocation.Version.Kind = MAXIMUM then no fix is available. Return false
 			return false
 		}
@@ -163,26 +163,27 @@ func getProjectFromNoteReference(ref string) (string, error) {
 	return str[2], nil
 }
 
-func (c ContainerAnalysis) CreateAttestationNote(aa *kritisv1beta1.AttestationAuthority) (*containeranalysispb.Note, error) {
+// CreateAttestationNote creates an attestation note from AttestationAuthority
+func (c Client) CreateAttestationNote(aa *kritisv1beta1.AttestationAuthority) (*cpb.Note, error) {
 	noteProject, err := getProjectFromNoteReference(aa.Spec.NoteReference)
 	if err != nil {
 		return nil, err
 	}
-	aaNote := &containeranalysispb.AttestationAuthority{
-		Hint: &containeranalysispb.AttestationAuthority_AttestationAuthorityHint{
+	aaNote := &cpb.AttestationAuthority{
+		Hint: &cpb.AttestationAuthority_AttestationAuthorityHint{
 			HumanReadableName: aa.Name,
 		},
 	}
-	note := containeranalysispb.Note{
+	note := cpb.Note{
 		Name:             fmt.Sprintf("projects/%s/notes/%s", noteProject, aa.Name),
 		ShortDescription: fmt.Sprintf("Image Policy Security Attestor"),
 		LongDescription:  fmt.Sprintf("Image Policy Security Attestor deployed in %s namespace", aa.Namespace),
-		NoteType: &containeranalysispb.Note_AttestationAuthority{
+		NoteType: &cpb.Note_AttestationAuthority{
 			AttestationAuthority: aaNote,
 		},
 	}
 
-	req := &containeranalysispb.CreateNoteRequest{
+	req := &cpb.CreateNoteRequest{
 		Note:   &note,
 		NoteId: aa.Name,
 		Parent: fmt.Sprintf("projects/%s", noteProject),
@@ -190,20 +191,22 @@ func (c ContainerAnalysis) CreateAttestationNote(aa *kritisv1beta1.AttestationAu
 	return c.client.CreateNote(c.ctx, req)
 }
 
-func (c ContainerAnalysis) GetAttestationNote(aa *kritisv1beta1.AttestationAuthority) (*containeranalysispb.Note, error) {
+//AttestationNote returns a note if it exists for given AttestationAuthority
+func (c Client) AttestationNote(aa *kritisv1beta1.AttestationAuthority) (*cpb.Note, error) {
 	noteProject, err := getProjectFromNoteReference(aa.Spec.NoteReference)
 	if err != nil {
 		return nil, err
 	}
-	req := &containeranalysispb.GetNoteRequest{
+	req := &cpb.GetNoteRequest{
 		Name: fmt.Sprintf("projects/%s/notes/%s", noteProject, aa.Name),
 	}
 	return c.client.GetNote(c.ctx, req)
 }
 
-func (c ContainerAnalysis) CreateAttestationOccurence(note *containeranalysispb.Note,
+// CreateAttestationOccurence creates an Attestation occurrence for a given image and secret.
+func (c Client) CreateAttestationOccurence(note *cpb.Note,
 	containerImage string,
-	pgpSigningKey *secrets.PGPSigningSecret) (*containeranalysispb.Occurrence, error) {
+	pgpSigningKey *secrets.PGPSigningSecret) (*cpb.Occurrence, error) {
 	if !isValidImageOnGCR(containerImage) {
 		return nil, fmt.Errorf("%s is not a valid image hosted in GCR", containerImage)
 	}
@@ -212,27 +215,27 @@ func (c ContainerAnalysis) CreateAttestationOccurence(note *containeranalysispb.
 	if err != nil {
 		return nil, err
 	}
-	pgpSignedAttestation := &containeranalysispb.PgpSignedAttestation{
+	pgpSignedAttestation := &cpb.PgpSignedAttestation{
 		Signature: sig,
-		KeyId: &containeranalysispb.PgpSignedAttestation_PgpKeyId{
+		KeyId: &cpb.PgpSignedAttestation_PgpKeyId{
 			PgpKeyId: pgpSigningKey.SecretName,
 		},
 	}
 
-	attestationDetails := &containeranalysispb.Occurrence_Attestation{
-		Attestation: &containeranalysispb.AttestationAuthority_Attestation{
-			Signature: &containeranalysispb.AttestationAuthority_Attestation_PgpSignedAttestation{
+	attestationDetails := &cpb.Occurrence_Attestation{
+		Attestation: &cpb.AttestationAuthority_Attestation{
+			Signature: &cpb.AttestationAuthority_Attestation_PgpSignedAttestation{
 				PgpSignedAttestation: pgpSignedAttestation,
 			},
 		},
 	}
-	occ := &containeranalysispb.Occurrence{
+	occ := &cpb.Occurrence{
 		ResourceUrl: getResourceURL(containerImage),
 		NoteName:    note.GetName(),
 		Details:     attestationDetails,
 	}
 	// Create the AttestationAuthrity Occurrence in the Project AttestationAuthority Note.
-	req := &containeranalysispb.CreateOccurrenceRequest{
+	req := &cpb.CreateOccurrenceRequest{
 		Occurrence: occ,
 		Parent:     fmt.Sprintf("projects/%s", strings.Split(containerImage, "/")[1]),
 	}
@@ -240,30 +243,33 @@ func (c ContainerAnalysis) CreateAttestationOccurence(note *containeranalysispb.
 	return c.client.CreateOccurrence(c.ctx, req)
 }
 
-// These following methods are used for Testing.
-func (c ContainerAnalysis) DeleteAttestationNote(aa *kritisv1beta1.AttestationAuthority) error {
-	noteProject, err := getProjectFromNoteReference(aa.Spec.NoteReference)
-	if err != nil {
-		return err
-	}
-	req := &containeranalysispb.DeleteNoteRequest{
-		Name: fmt.Sprintf("projects/%s/notes/%s", noteProject, aa.Name),
-	}
-	return c.client.DeleteNote(c.ctx, req)
-}
-
-func (c ContainerAnalysis) DeleteOccurrence(ID string) error {
-	req := &containeranalysispb.DeleteOccurrenceRequest{
-		Name: ID,
-	}
-	return c.client.DeleteOccurrence(c.ctx, req)
-}
-
-func getPgpAttestationFromOccurrence(occ *containeranalysispb.Occurrence) metadata.PGPAttestation {
-	pgp := occ.GetDetails().(*containeranalysispb.Occurrence_Attestation).Attestation.GetPgpSignedAttestation()
+func getPgpAttestationFromOccurrence(occ *cpb.Occurrence) metadata.PGPAttestation {
+	pgp := occ.GetDetails().(*cpb.Occurrence_Attestation).Attestation.GetPgpSignedAttestation()
 	return metadata.PGPAttestation{
 		Signature: pgp.GetSignature(),
 		KeyID:     pgp.GetPgpKeyId(),
 		OccID:     occ.GetName(),
 	}
+}
+
+// The following methods are used for Testing
+
+// DeleteAttestationNote deletes a note for given AttestationAuthority
+func (c Client) DeleteAttestationNote(aa *kritisv1beta1.AttestationAuthority) error {
+	noteProject, err := getProjectFromNoteReference(aa.Spec.NoteReference)
+	if err != nil {
+		return err
+	}
+	req := &cpb.DeleteNoteRequest{
+		Name: fmt.Sprintf("projects/%s/notes/%s", noteProject, aa.Name),
+	}
+	return c.client.DeleteNote(c.ctx, req)
+}
+
+// DeleteOccurrence deletes an occurrence with given ID
+func (c Client) DeleteOccurrence(ID string) error {
+	req := &cpb.DeleteOccurrenceRequest{
+		Name: ID,
+	}
+	return c.client.DeleteOccurrence(c.ctx, req)
 }
